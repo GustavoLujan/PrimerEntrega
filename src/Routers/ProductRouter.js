@@ -1,107 +1,121 @@
 const express = require('express');
 const router = express.Router();
-const ProductManager = require('../Classes/ProductManager');
+const ProductDao = require('../dao/productDao');
 
-const pm = new ProductManager("./JSON/productos.json");
+module.exports = function (io) {
+    router.get('/', async (req, res) => {
+        try {
+            const products = await ProductDao.getProducts();
 
-router.get('/', async (req, res) => {
-    let products = await pm.getProducts()
-
-    let productLimits = req.query.limit
-        if (productLimits) {
-            productLimits = parseInt(productLimits, 10)
-            if (isNaN (productLimits)){
-                return res.send('<h1 style="color:red">Error, ingrese al limit un valor numerico</h1>')
+            let productLimits = req.query.limit;
+            if (productLimits) {
+                productLimits = parseInt(productLimits, 10);
+                if (isNaN(productLimits)) {
+                    return res.status(400).json({ error: 'Error, ingrese al limit un valor numerico' });
+                }
             }
+
+            if (productLimits) {
+                products = products.slice(0, productLimits);
+            }
+
+            res.setHeader('Content-Type', 'application/json');
+            res.status(200).json({ filtros: req.query, products });
+        } catch (error) {
+            console.error('Error al obtener productos:', error);
+            res.status(500).json({ error: 'Error interno del servidor' });
+        }
+    });
+
+    router.post('/', async (req, res) => {
+        const { title, description, code, price, stock, category, thumbnails } = req.body;
+
+        if (typeof title !== 'string' || title.trim() === '') {
+            return res.status(400).json({ error: 'No se permite el campo vacío en title' });
         }
 
-        if (productLimits) {
-            products = products.slice(0, productLimits)
+        if (typeof description !== 'string' || description.trim() === '') {
+            return res.status(400).json({ error: 'No se permite el campo vacío en description' });
         }
 
-        res.setHeader('Content-Type','application/json');
-        res.status(200).json({filtros: req.query, products });
-});
+        if (typeof code !== 'string' || code.trim() === '') {
+            return res.status(400).json({ error: 'No se permite el campo vacío en code' });
+        }
 
-router.post('/', (req, res) => {
-    const { title, description, code, price, stock, category, thumbnails } = req.body;
+        if (typeof price !== 'number' || isNaN(price) || price <= 0) {
+            return res.status(400).json({ error: 'Solo se permiten números positivos en price' });
+        }
 
-    if (typeof title !== 'string' || title.trim() === '') {
-        return res.status(400).json({ error: 'No se permite el campo vacío en title' });
-    }
+        if (typeof stock !== 'number' || isNaN(stock) || stock < 0) {
+            return res.status(400).json({ error: 'Solo se permiten números positivos en stock' });
+        }
 
-    if (typeof description !== 'string' || description.trim() === '') {
-        return res.status(400).json({ error: 'No se permite el campo vacío en description' });
-    }
+        if (typeof category !== 'string' || category.trim() === '') {
+            return res.status(400).json({ error: 'No se permite el campo vacío en category' });
+        }
 
-    if (typeof code !== 'string' || code.trim() === '') {
-        return res.status(400).json({ error: 'No se permite el campo vacío en code' });
-    }
+        try {
+            await ProductDao.addProduct(title, description, code, price, true, stock, category, thumbnails);
 
-    if (typeof price !== 'number' || isNaN(price) || price <= 0) {
-        return res.status(400).json({ error: 'Solo se permiten números positivos en price' });
-    }
+            const products = await ProductDao.getProducts();
+            io.emit('updateProducts', products);
 
-    if (typeof stock !== 'number' || isNaN(stock) || stock < 0) {
-        return res.status(400).json({ error: 'Solo se permiten números positivos en stock' });
-    }
+            res.status(201).json({ message: 'Producto agregado exitosamente' });
+        } catch (error) {
+            console.error('Error al agregar un producto:', error);
+            res.status(500).json({ error: 'Error interno del servidor' });
+        }
+    });
 
-    if (typeof category !== 'string' || category.trim() === '') {
-        return res.status(400).json({ error: 'No se permite el campo vacío en category' });
-    }
+    router.put('/:id', async (req, res) => {
+        const productId = req.params.id;
+        const updatedProduct = req.body;
 
-    if (!Array.isArray(thumbnails) || !thumbnails.every(url => typeof url === 'string')) {
-        return res.status(400).json({ error: 'thumbnails solo permite URL dentro de un array de cadenas' });
-    }
+        try {
+            await ProductDao.updateProduct(productId, updatedProduct);
 
-    pm.addProduct(title, description, code, price, true, stock, category, thumbnails);
+            const products = await ProductDao.getProducts();
+            io.emit('updateProducts', products);
 
-    res.status(201).json({ message: 'Producto agregado exitosamente' });
-});
+            res.status(200).json({ message: 'Producto actualizado exitosamente' });
+        } catch (error) {
+            console.error(`Error al actualizar el producto con ID ${productId}:`, error);
+            res.status(500).json({ error: 'Error interno del servidor' });
+        }
+    });
 
-router.get('/:pid', async (req, res) => {
-    let pid = req.params.pid;
-    pid = parseInt(pid);
+    router.get('/:id', async (req, res) => {
+        const productId = req.params.id;
 
-    if(isNaN(pid)){
-        return res.status(400).send('<h1 style="color:red">Error, ingrese un id de valor numerico</h1>');
-    }
+        try {
+            const product = await ProductDao.getProductById(productId);
+            if (product) {
+                res.status(200).json({ product });
+            } else {
+                res.status(404).json({ error: 'Producto no encontrado' });
+            }
+        } catch (error) {
+            console.error(`Error al obtener el producto con ID ${productId}:`, error);
+            res.status(500).json({ error: 'Error interno del servidor' });
+        }
+    });
 
-    let product = await pm.getProductById(pid);
-    if (product) {
-        res.setHeader('Content-Type','application/json');
-        res.status(200).json({product});
-    } else {
-        res.status(404).json({ error: 'Producto no encontrado'});
-    }
-});
+    router.delete('/:id', async (req, res) => {
+        const productId = req.params.id;
+    
+        const existingProduct = await ProductDao.getProductById(productId);
+        if (!existingProduct) {
+            return res.status(404).json({ error: 'Producto no encontrado' });
+        }
+    
+        try {
+            await ProductDao.deleteProduct(productId);
+            res.status(200).json({ message: 'Producto eliminado exitosamente' });
+        } catch (error) {
+            console.error(`Error al eliminar el producto con ID ${productId}:`, error);
+            res.status(500).json({ error: 'Error interno del servidor' });
+        }
+    });
 
-router.put('/:pid', (req, res) => {
-    let pid = req.params.pid;
-    pid = parseInt(pid);
-
-    if(isNaN(pid)){
-        return res.send('<h1 style="color:red">Error, ingrese un id de valor numérico</h1>');
-    }
-
-    const updatedProduct = req.body;
-
-    pm.updateProduct(pid, updatedProduct);
-
-    res.status(200).json({message: 'Producto actualizado exitosamente' });
-});
-
-router.delete('/:pid', (req, res) => {
-    let pid = req.params.pid;
-    pid = parseInt(pid);
-
-    if(isNaN(pid)){
-        return res.send('<h1 style="color:red">Error, ingrese un id de valor numérico</h1>');
-    }
-
-    pm.deleteProduct(pid);
-
-    res.status(200).json({message: 'Producto eliminado exitosamente' });
-});
-
-module.exports = router;
+    return router;
+};
