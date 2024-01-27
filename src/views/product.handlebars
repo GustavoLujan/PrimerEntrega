@@ -1,0 +1,58 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+
+<h1>Lista de Productos</h1>
+<ul>
+    {{#each products.payload}}
+    <li>
+        nombre: {{this.title}} - categoria: {{this.category}} - precio:{{this.price}}
+        <button class="addToCartBtn" onclick="addToCart('{{this._id}}', '{{this.title}}')" disabled>Agregar al
+            carrito</button> <hr> <br>
+    </li>
+    {{/each}}
+</ul>
+
+{{#if products.hasPrevPage}}
+<a href="?page={{products.prevPage}}&limit={{products.limit}}">Página Anterior</a>
+{{/if}}
+
+{{#if products.hasNextPage}}
+<a href="?page={{products.nextPage}}&limit={{products.limit}}">Página Siguiente</a>
+{{/if}}
+
+<script>
+    const socket = io();
+
+    socket.on('connect', () => {
+        console.log('Conectado al servidor');
+        enableButtons();
+    });
+
+    socket.on('disconnect', () => {
+        console.log('Desconectado del servidor');
+        disableButtons();
+    });
+
+    function enableButtons() {
+        const buttons = document.getElementsByClassName('addToCartBtn');
+        for (const button of buttons) {
+            button.removeAttribute('disabled');
+        }
+    }
+
+    function disableButtons() {
+        const buttons = document.getElementsByClassName('addToCartBtn');
+        for (const button of buttons) {
+            button.setAttribute('disabled', 'true');
+        }
+    }
+
+    function addToCart(productId, productName) {
+        console.log(socket);
+
+        if (typeof socket !== 'undefined' && socket.connected) {
+            socket.emit('addToCart', { productId, productName });
+        } else {
+            console.error('Socket no definido o no conectado');
+        }
+    }
+</script>

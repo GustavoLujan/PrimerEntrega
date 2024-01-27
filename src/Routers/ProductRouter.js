@@ -1,31 +1,52 @@
 const express = require('express');
 const router = express.Router();
+
 const ProductDao = require('../dao/productDao');
+const { Product } = require('../dao/index');
 
 module.exports = function (io) {
     router.get('/', async (req, res) => {
         try {
-            const products = await ProductDao.getProducts();
+            const { limit, page, sort, query } = req.query;
+            console.log(limit, page, sort, query)
+            const options = {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                sort: sort ? { price: sort === 'asc' ? 1 : -1 } : undefined,
+            };
 
-            let productLimits = req.query.limit;
-            if (productLimits) {
-                productLimits = parseInt(productLimits, 10);
-                if (isNaN(productLimits)) {
-                    return res.status(400).json({ error: 'Error, ingrese al limit un valor numerico' });
-                }
-            }
+            const filter = query ? {} : {};
 
-            if (productLimits) {
-                products = products.slice(0, productLimits);
-            }
+            const products = await Product.paginate(filter, options);
 
-            res.setHeader('Content-Type', 'application/json');
-            res.status(200).json({ filtros: req.query, products });
+            const totalPages = products.totalPages;
+            const prevPage = products.prevPage;
+            const nextPage = products.nextPage;
+            const hasPrevPage = products.hasPrevPage;
+            const hasNextPage = products.hasNextPage;
+            const prevLink = hasPrevPage ? `/products?limit=${limit}&page=${prevPage}` : null;
+            const nextLink = hasNextPage ? `/products?limit=${limit}&page=${nextPage}` : null;
+
+            res.json({
+                status: 'success',
+                payload: products.docs,
+                totalPages,
+                prevPage,
+                nextPage,
+                page: products.page,
+                hasPrevPage,
+                hasNextPage,
+                prevLink,
+                nextLink,
+                limit
+            });
+
         } catch (error) {
             console.error('Error al obtener productos:', error);
-            res.status(500).json({ error: 'Error interno del servidor' });
+            res.status(500).json({ status: 'error', error: 'Error interno del servidor' });
         }
     });
+
 
     router.post('/', async (req, res) => {
         const { title, description, code, price, stock, category, thumbnails } = req.body;
@@ -110,6 +131,12 @@ module.exports = function (io) {
     
         try {
             await ProductDao.deleteProduct(productId);
+    
+            io.emit('productDeleted', { productId });
+    
+            const products = await ProductDao.getProducts();
+            io.emit('updateProducts', products);
+    
             res.status(200).json({ message: 'Producto eliminado exitosamente' });
         } catch (error) {
             console.error(`Error al eliminar el producto con ID ${productId}:`, error);
