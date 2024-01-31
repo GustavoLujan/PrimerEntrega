@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
-mongoose.connect('mongodb+srv://tavolujan13:<password>@cluster0.hmxtrlt.mongodb.net/?retryWrites=true&w=majority');
+mongoose.connect('mongodb+srv://tavolujan13:2DzswDTS9op17gvl@cluster0.hmxtrlt.mongodb.net/?retryWrites=true&w=majority',{ dbName: "ecommerce" });
+
 
 const Cart = require('./models/cartModel');
 const Message = require('./models/messageModel');
