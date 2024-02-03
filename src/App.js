@@ -5,20 +5,21 @@ const socketIO = require('socket.io');
 const path = require('path');
 const mongoose = require('mongoose');
 const ProductRouter = require('./routers/ProductRouter');
-const CartRouter = require('./routers/CartRouter');
+const CartRouter = require('./Routers/CartRouter');
 const ChatRouter = require('./routers/ChatRouter');
-const SessionRouter = require('./Routers/SessionRouter')
-const ViewsRouter = require('./Routers/ViewsRouter')
+const SessionRouterLocal = require('./Routers/SessionLocalRouter')
+const LoginRouter = require('./Routers/LoginRouter')
 const ProductDao = require('./dao/productDao');
 const MessageDao = require('./dao/messageDao');
 const CartDao = require('./dao/cartDao');
 const sessions = require('express-session')
 const mongoStore = require('connect-mongo')
-
+const passport = require('passport')
+const ClientRouter = require('./Routers/ClientRouter')
 const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
-const port = 3000;
+const port = process.env.PORT || 3000
 
 app.use(sessions(
     {
@@ -33,6 +34,16 @@ app.use(sessions(
         )
     }
 ))
+
+inicializarPassport()
+initPassportGithub()
+app.use(passport.initialize())
+app.use(passport.session())
+
+app.use((req, res, next) => {
+    res.locals.isAuthenticated = req.session && req.session.isAuthenticated || false;
+    next();
+});
 
 app.get('/', (req, res) => {
     const isAuthenticated = req.session.usuario;
@@ -54,8 +65,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
-app.use('/', ViewsRouter(io))
-app.use('/api/sessions', SessionRouter(io) )
+app.use('/', LoginRouter(io))
+app.use('/api/sessions', SessionRouterLocal(io))
+app.use('/api/github', SessionGithubRouter(io))
+app.use('/api/clientes', ClientRouter(io))
 
 
 app.use('/api/products', ProductRouter(io));
@@ -123,7 +136,6 @@ io.on('connection', async (socket) => {
 server.listen(port, () => {
     console.log(`Servidor en linea, puerto ${port}`);
 });
-
 try {
     mongoose.connect('mongodb+srv://tavolujan13:2DzswDTS9op17gvl@cluster0.hmxtrlt.mongodb.net/?retryWrites=true&w=majority',
     {dbName:"ecommerce"})
