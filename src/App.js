@@ -5,21 +5,26 @@ const socketIO = require('socket.io');
 const path = require('path');
 const mongoose = require('mongoose');
 const ProductRouter = require('./routers/ProductRouter');
-const CartRouter = require('./Routers/CartRouter');
+const CartRouter = require('./routers/CartRouter');
 const ChatRouter = require('./routers/ChatRouter');
-const SessionRouterLocal = require('./Routers/SessionLocalRouter')
-const LoginRouter = require('./Routers/LoginRouter')
+const SessionRouterLocal = require('./routers/SessionLocalRouter')
+const SessionGithubRouter = require('./Routers/SessionGithubRouter')
+const LoginRouter = require('./routers/LoginRouter')
 const ProductDao = require('./dao/productDao');
 const MessageDao = require('./dao/messageDao');
 const CartDao = require('./dao/cartDao');
 const sessions = require('express-session')
 const mongoStore = require('connect-mongo')
 const passport = require('passport')
-const ClientRouter = require('./Routers/ClientRouter')
+const ClientRouter = require('./routers/ClientRouter')
+const initPassportGithub = require('./config/config.passportGithub')
+const inicializarPassport = require('./config/config.passportLocal')
 const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
 const port = process.env.PORT || 3000
+
+
 
 app.use(sessions(
     {
@@ -34,7 +39,6 @@ app.use(sessions(
         )
     }
 ))
-
 inicializarPassport()
 initPassportGithub()
 app.use(passport.initialize())
@@ -117,13 +121,13 @@ io.on('connection', async (socket) => {
     const products = await ProductDao.getProducts({ limit: 50});
     socket.emit('products', products);
 
-    socket.on('addToCart', async ({ productId, productName }) => {
+    socket.on('addToCart', async ({ productId, productName, userRole }) => {
         try {
 
-            const cartId = "6585aebbfcb39ade17d125d0";
+
             const quantity = 1;
 
-            await CartDao.addProductToCart(cartId, productId, quantity);
+            await CartDao.addProductToCart(userRole, productId, quantity);
 
             console.log(`Producto "${productName}" agregado al carrito`);
 
@@ -136,6 +140,7 @@ io.on('connection', async (socket) => {
 server.listen(port, () => {
     console.log(`Servidor en linea, puerto ${port}`);
 });
+
 try {
     mongoose.connect('mongodb+srv://tavolujan13:2DzswDTS9op17gvl@cluster0.hmxtrlt.mongodb.net/?retryWrites=true&w=majority',
     {dbName:"ecommerce"})
