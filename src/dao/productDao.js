@@ -2,7 +2,7 @@ const { Product } = require('./index');
 
 
 class ProductDao {
-    async getProducts({ limit, page, sort, query } = {}){
+    async getProducts({ limit, page, sort, query } = {}) {
         try {
             const filter = {};
     
@@ -24,7 +24,7 @@ class ProductDao {
     
             const options = {
                 page: parseInt(page) || 1,
-                limit: parseInt(limit) || 100,
+                limit: parseInt(limit) || 50,
                 sort: sort ? { price: sort === 'asc' ? 1 : -1 } : undefined,
             };
     

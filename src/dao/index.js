@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
+const config = require('../config/config')
 
-mongoose.connect('mongodb+srv://tavolujan13:2DzswDTS9op17gvl@cluster0.hmxtrlt.mongodb.net/?retryWrites=true&w=majority',{ dbName: "ecommerce" });
-
+mongoose.connect(config.mongoURI, { dbName: "ecommerce" });
 
 const Cart = require('./models/cartModel');
 const Message = require('./models/messageModel');

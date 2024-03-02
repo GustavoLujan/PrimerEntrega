@@ -8,7 +8,7 @@ const ProductRouter = require('./routers/ProductRouter');
 const CartRouter = require('./routers/CartRouter');
 const ChatRouter = require('./routers/ChatRouter');
 const SessionRouterLocal = require('./routers/SessionLocalRouter')
-const SessionGithubRouter = require('./Routers/SessionGithubRouter')
+const SessionGithubRouter = require('./routers/SessionGithubRouter')
 const LoginRouter = require('./routers/LoginRouter')
 const ProductDao = require('./dao/productDao');
 const MessageDao = require('./dao/messageDao');
@@ -17,22 +17,23 @@ const sessions = require('express-session')
 const mongoStore = require('connect-mongo')
 const passport = require('passport')
 const ClientRouter = require('./routers/ClientRouter')
-const initPassportGithub = require('./config/config.passportGithub')
-const inicializarPassport = require('./config/config.passportLocal')
+const initPassportGithub = require('./config/passport/config.passportGithub')
+const inicializarPassport = require('./config/passport/config.passportLocal')
+const config = require('./config/config');
 const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
-const port = process.env.PORT || 3000
+const port = config.port || 3000;
 
 
 
 app.use(sessions(
     {
-        secret:"codercoder123",
+        secret: config.sessionSecret,
         resave: true, saveUninitialized: true,
         store: mongoStore.create(
             {
-                mongoUrl:'mongodb+srv://tavolujan13:2DzswDTS9op17gvl@cluster0.hmxtrlt.mongodb.net/?retryWrites=true&w=majority',
+                mongoUrl:config.mongoURI,
                 mongoOptions:{dbName:"ecommerce"},
                 ttl:3600,
             }
@@ -46,6 +47,7 @@ app.use(passport.session())
 
 app.use((req, res, next) => {
     res.locals.isAuthenticated = req.session && req.session.isAuthenticated || false;
+    req.io = io;
     next();
 });
 
@@ -142,9 +144,8 @@ server.listen(port, () => {
 });
 
 try {
-    mongoose.connect('mongodb+srv://tavolujan13:2DzswDTS9op17gvl@cluster0.hmxtrlt.mongodb.net/?retryWrites=true&w=majority',
-    {dbName:"ecommerce"})
-    console.log("DB online...!!!")
+    mongoose.connect(config.mongoURI, { dbName: "ecommerce" });
+    console.log("DB online...!!!");
 } catch (error) {
-    console.log(error.message)
+    console.log(error.message);
 }
