@@ -10,9 +10,9 @@ const ChatRouter = require('./routers/ChatRouter');
 const SessionRouterLocal = require('./routers/SessionLocalRouter')
 const SessionGithubRouter = require('./routers/SessionGithubRouter')
 const LoginRouter = require('./routers/LoginRouter')
-const ProductDao = require('./dao/productDao');
+const ProductService = require('./repository/product.service');
 const MessageDao = require('./dao/messageDao');
-const CartDao = require('./dao/cartDao');
+const CartService = require('./repository/cart.service');
 const sessions = require('express-session')
 const mongoStore = require('connect-mongo')
 const passport = require('passport')
@@ -84,7 +84,7 @@ app.use('/chat', ChatRouter(io, MessageDao));
 app.get('/views/carts/:cid', async (req, res) => {
     const cid = req.params.cid;
     try {
-        const cart = await CartDao.getCartById(cid);
+        const cart = await CartService.getCartById(cid);
         if (cart) {
             res.render('cart', { cart });
         } else {
@@ -98,7 +98,7 @@ app.get('/views/carts/:cid', async (req, res) => {
 
 app.get('/realtimeproducts', async (req, res) => {
     try {
-        const products = await ProductDao.getProducts({ limit: req.query.limit, page: req.query.page, sort: req.query.sort, query: req.query.query });
+        const products = await ProductService.getProducts({ limit: req.query.limit, page: req.query.page, sort: req.query.sort, query: req.query.query });
         res.render('realtimeproducts', { products });
     } catch (error) {
         console.error('Error al obtener productos para la vista:', error);
@@ -109,7 +109,7 @@ app.get('/realtimeproducts', async (req, res) => {
 app.get('/views/products', async (req, res) => {
     try {
         let usuario=req.session.usuario
-        const products = await ProductDao.getProducts({ limit: 10, page: req.query.page, sort: req.query.sort, query: req.query.query });
+        const products = await ProductService.getProducts({ limit: 10, page: req.query.page, sort: req.query.sort, query: req.query.query });
         res.render('products', { products, usuario });
     } catch (error) {
         console.error('Error al obtener productos para la vista:', error);
@@ -117,10 +117,28 @@ app.get('/views/products', async (req, res) => {
     }
 });
 
+app.get('/purchase', async (req, res) => {
+    if (!req.session.usuario) {
+        return res.redirect('/login');
+    }
+
+    try {
+        const cartId = req.session.usuario.cartID;
+
+        const cart = await CartService.getCartById(cartId);
+
+
+        res.status(200).render('purchase', { cart, cartId });
+    } catch (error) {
+        console.error('Error al obtener el carrito:', error);
+        res.status(500).send('Error interno del servidor');
+    }
+});
+
 io.on('connection', async (socket) => {
     console.log('Cliente conectado');
 
-    const products = await ProductDao.getProducts({ limit: 50});
+    const products = await ProductService.getProducts({ limit: 50});
     socket.emit('products', products);
 
     socket.on('addToCart', async ({ productId, productName, userRole }) => {
@@ -129,7 +147,7 @@ io.on('connection', async (socket) => {
 
             const quantity = 1;
 
-            await CartDao.addProductToCart(userRole, productId, quantity);
+            await CartService.addProductToCart(userRole, productId, quantity);
 
             console.log(`Producto "${productName}" agregado al carrito`);
 
