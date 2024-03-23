@@ -20,6 +20,9 @@ const ClientRouter = require('./routers/ClientRouter')
 const initPassportGithub = require('./config/passport/config.passportGithub')
 const inicializarPassport = require('./config/passport/config.passportLocal')
 const config = require('./config/config');
+const generateMockProducts = require('./mocks/product.mocks');
+const { errorHandler } = require('./middleware/errorHandler')
+
 const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
@@ -50,6 +53,7 @@ app.use((req, res, next) => {
     req.io = io;
     next();
 });
+app.use(errorHandler)
 
 app.get('/', (req, res) => {
     const isAuthenticated = req.session.usuario;
@@ -80,6 +84,7 @@ app.use('/api/clientes', ClientRouter(io))
 app.use('/api/products', ProductRouter(io));
 app.use('/api/carts', CartRouter(io));
 app.use('/chat', ChatRouter(io, MessageDao));
+
 
 app.get('/views/carts/:cid', async (req, res) => {
     const cid = req.params.cid;
@@ -117,6 +122,11 @@ app.get('/views/products', async (req, res) => {
     }
 });
 
+app.get('/mokingproducts', (req, res) => {
+    const mockProducts = generateMockProducts();
+    res.render('mocks', { products: mockProducts });
+});
+
 app.get('/purchase', async (req, res) => {
     if (!req.session.usuario) {
         return res.redirect('/login');
@@ -134,6 +144,7 @@ app.get('/purchase', async (req, res) => {
         res.status(500).send('Error interno del servidor');
     }
 });
+
 
 io.on('connection', async (socket) => {
     console.log('Cliente conectado');
@@ -160,6 +171,7 @@ io.on('connection', async (socket) => {
 server.listen(port, () => {
     console.log(`Servidor en linea, puerto ${port}`);
 });
+
 
 try {
     mongoose.connect(config.mongoURI, { dbName: "ecommerce" });
