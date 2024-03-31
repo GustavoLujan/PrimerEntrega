@@ -1,3 +1,4 @@
+console.log('cargo chat.js');
 const socket = io();
 let inputMensaje = document.getElementById('mensaje');
 let divMensajes = document.getElementById('mensajes');

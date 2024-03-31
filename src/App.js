@@ -4,11 +4,11 @@ const http = require('http');
 const socketIO = require('socket.io');
 const path = require('path');
 const mongoose = require('mongoose');
-const ProductRouter = require('./routers/ProductRouter');
-const CartRouter = require('./routers/CartRouter');
-const ChatRouter = require('./routers/ChatRouter');
-const SessionRouterLocal = require('./routers/SessionLocalRouter')
-const SessionGithubRouter = require('./routers/SessionGithubRouter')
+const ProductRouter = require('./Routers/ProductRouter');
+const CartRouter = require('./Routers/CartRouter');
+const ChatRouter = require('./routers/chatRouter');
+const SessionRouterLocal = require('./Routers/SessionGithubRouter')
+const SessionGithubRouter = require('./Routers/SessionGithubRouter')
 const LoginRouter = require('./routers/LoginRouter')
 const ProductService = require('./repository/product.service');
 const MessageDao = require('./dao/messageDao');
@@ -21,7 +21,8 @@ const initPassportGithub = require('./config/passport/config.passportGithub')
 const inicializarPassport = require('./config/passport/config.passportLocal')
 const config = require('./config/config');
 const generateMockProducts = require('./mocks/product.mocks');
-const { errorHandler } = require('./middleware/errorHandler')
+const { errorHandler } = require('./middleware/errorHandler');
+const { middLogg, logger } = require('./utils/winston');
 
 const app = express();
 const server = http.createServer(app);
@@ -36,9 +37,9 @@ app.use(sessions(
         resave: true, saveUninitialized: true,
         store: mongoStore.create(
             {
-                mongoUrl:config.mongoURI,
-                mongoOptions:{dbName:"ecommerce"},
-                ttl:3600,
+                mongoUrl: config.mongoURI,
+                mongoOptions: { dbName: "ecommerce" },
+                ttl: 3600,
             }
         )
     }
@@ -71,6 +72,7 @@ app.engine('handlebars', engine({ extname: '.handlebars' }));
 app.set('view engine', 'handlebars');
 app.set('views', viewsPath);
 
+app.use(middLogg)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
@@ -96,7 +98,7 @@ app.get('/views/carts/:cid', async (req, res) => {
             res.status(404).json({ error: 'Carrito no encontrado' });
         }
     } catch (error) {
-        console.error(`Error al obtener el carrito con ID ${cid}:`, error);
+        logger.error(`Error al obtener el carrito con ID ${cid}:`, error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
@@ -106,18 +108,18 @@ app.get('/realtimeproducts', async (req, res) => {
         const products = await ProductService.getProducts({ limit: req.query.limit, page: req.query.page, sort: req.query.sort, query: req.query.query });
         res.render('realtimeproducts', { products });
     } catch (error) {
-        console.error('Error al obtener productos para la vista:', error);
+        req.logger.error('Error al obtener productos para la vista:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
 
 app.get('/views/products', async (req, res) => {
     try {
-        let usuario=req.session.usuario
+        let usuario = req.session.usuario
         const products = await ProductService.getProducts({ limit: 10, page: req.query.page, sort: req.query.sort, query: req.query.query });
         res.render('products', { products, usuario });
     } catch (error) {
-        console.error('Error al obtener productos para la vista:', error);
+        req.logger.error('Error al obtener productos para la vista:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
@@ -145,11 +147,20 @@ app.get('/purchase', async (req, res) => {
     }
 });
 
+app.get('/loggerTest', (req, res) => {
+    req.logger.debug('Debug test');
+    req.logger.http('HTTP test');
+    req.logger.info('Info test');
+    req.logger.warning('Warning test');
+    req.logger.error('Error test');
+    req.logger.fatal('Fatal test');
+    res.send('Logs created');
+});
+
 
 io.on('connection', async (socket) => {
-    console.log('Cliente conectado');
 
-    const products = await ProductService.getProducts({ limit: 50});
+    const products = await ProductService.getProducts({ limit: 50 });
     socket.emit('products', products);
 
     socket.on('addToCart', async ({ productId, productName, userRole }) => {
@@ -160,22 +171,22 @@ io.on('connection', async (socket) => {
 
             await CartService.addProductToCart(userRole, productId, quantity);
 
-            console.log(`Producto "${productName}" agregado al carrito`);
+            logger.info(`Producto "${productName}" agregado al carrito`);
 
         } catch (error) {
-            console.error('Error al agregar el producto al carrito:', error);
+            logger.error('Error al agregar el producto al carrito:', error);
         }
     });
 });
 
 server.listen(port, () => {
-    console.log(`Servidor en linea, puerto ${port}`);
+    logger.info(`Servidor en linea, puerto ${port}`);
 });
 
 
 try {
     mongoose.connect(config.mongoURI, { dbName: "ecommerce" });
-    console.log("DB online...!!!");
+    logger.http("DB online...!!!");
 } catch (error) {
-    console.log(error.message);
+    logger.fatal(error.message);
 }

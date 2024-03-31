@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
+const { isUser, redirectToHomeIfAdmin } = require('../middleware/authorization');
+const { logger } = require('../utils/winston')
 
 module.exports = function (io, MessageDao) {
-    router.get('/', async (req, res) => {
+    router.get('/', redirectToHomeIfAdmin, isUser, async (req, res) => {
         try {
             const messages = await MessageDao.getMessages();
             res.render('chat', { messages });
@@ -13,7 +15,7 @@ module.exports = function (io, MessageDao) {
     });
 
     io.on('connection', async (socket) => {
-        console.log('Cliente conectado');
+        logger.info('Cliente conectado');
 
         socket.on('mensaje', async (datos) => {
             await MessageDao.addMessage(datos.emisor.correo, datos.mensaje);
@@ -23,7 +25,7 @@ module.exports = function (io, MessageDao) {
         });
 
         socket.on('disconnect', () => {
-            console.log('Cliente desconectado');
+            logger.info('Cliente desconectado');
         });
     });
 
