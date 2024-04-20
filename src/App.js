@@ -4,12 +4,13 @@ const http = require('http');
 const socketIO = require('socket.io');
 const path = require('path');
 const mongoose = require('mongoose');
-const ProductRouter = require('./Routers/ProductRouter');
-const CartRouter = require('./Routers/CartRouter');
-const ChatRouter = require('./routers/chatRouter');
-const SessionRouterLocal = require('./Routers/SessionGithubRouter')
-const SessionGithubRouter = require('./Routers/SessionGithubRouter')
+const ProductRouter = require('./routers/ProductRouter');
+const CartRouter = require('./routers/CartRouter');
+const ChatRouter = require('./routers/ChatRouter');
+const SessionRouterLocal = require('./routers/SessionLocalRouter')
+const SessionGithubRouter = require('./routers/SessionGithubRouter')
 const LoginRouter = require('./routers/LoginRouter')
+const userRouter = require('./routers/userRouter')
 const ProductService = require('./repository/product.service');
 const MessageDao = require('./dao/messageDao');
 const CartService = require('./repository/cart.service');
@@ -24,10 +25,30 @@ const generateMockProducts = require('./mocks/product.mocks');
 const { errorHandler } = require('./middleware/errorHandler');
 const { middLogg, logger } = require('./utils/winston');
 
+const swaggerJsdoc = require("swagger-jsdoc")
+const swaggerUi = require("swagger-ui-express")
+
+
+
 const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
 const port = config.port || 3000;
+
+
+const options = {
+    definition:{
+        openapi:"3.0.0",
+        info:{
+            title: "Documentacion API",
+            version: "1.0.0",
+            description: "Documentacion sobre los productos y carrito del proyecto"
+        }
+    },
+    apis: ["./docs/*.yaml"]
+}
+
+const specs = swaggerJsdoc(options)
 
 
 
@@ -55,6 +76,7 @@ app.use((req, res, next) => {
     next();
 });
 app.use(errorHandler)
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs))
 
 app.get('/', (req, res) => {
     const isAuthenticated = req.session.usuario;
@@ -85,6 +107,7 @@ app.use('/api/clientes', ClientRouter(io))
 
 app.use('/api/products', ProductRouter(io));
 app.use('/api/carts', CartRouter(io));
+app.use('/api/users', userRouter(io));
 app.use('/chat', ChatRouter(io, MessageDao));
 
 
