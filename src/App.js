@@ -6,7 +6,7 @@ const path = require('path');
 const mongoose = require('mongoose');
 const ProductRouter = require('./routers/ProductRouter');
 const CartRouter = require('./routers/CartRouter');
-const ChatRouter = require('./routers/ChatRouter');
+const ChatRouter = require('./routers/chatRouter');
 const SessionRouterLocal = require('./routers/SessionLocalRouter')
 const SessionGithubRouter = require('./routers/SessionGithubRouter')
 const LoginRouter = require('./routers/LoginRouter')
@@ -24,6 +24,8 @@ const config = require('./config/config');
 const generateMockProducts = require('./mocks/product.mocks');
 const { errorHandler } = require('./middleware/errorHandler');
 const { middLogg, logger } = require('./utils/winston');
+const { isAdmin } = require('./middleware/authorization')
+const usuariosModelo = require('./dao/models/usermodel');
 
 const swaggerJsdoc = require("swagger-jsdoc")
 const swaggerUi = require("swagger-ui-express")
@@ -49,6 +51,11 @@ const options = {
 }
 
 const specs = swaggerJsdoc(options)
+
+const checkAdmin = (req, res, next) => {
+    res.locals.isAdmin = req.session.usuario && req.session.usuario.role === 'admin';
+    next();
+};
 
 
 
@@ -77,16 +84,17 @@ app.use((req, res, next) => {
 });
 app.use(errorHandler)
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs))
+app.use(checkAdmin);
 
 app.get('/', (req, res) => {
     const isAuthenticated = req.session.usuario;
 
     if (!isAuthenticated) {
-        return res.redirect('/login');
+        return res.redirect('/login', );
     }
 
 
-    res.render('home');
+    res.render('home' );
 });
 
 const viewsPath = path.join(__dirname, 'views');
@@ -97,7 +105,8 @@ app.set('views', viewsPath);
 app.use(middLogg)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
+
 
 app.use('/', LoginRouter(io))
 app.use('/api/sessions', SessionRouterLocal(io))
@@ -105,11 +114,11 @@ app.use('/api/github', SessionGithubRouter(io))
 app.use('/api/clientes', ClientRouter(io))
 
 
+
 app.use('/api/products', ProductRouter(io));
 app.use('/api/carts', CartRouter(io));
 app.use('/api/users', userRouter(io));
 app.use('/chat', ChatRouter(io, MessageDao));
-
 
 app.get('/views/carts/:cid', async (req, res) => {
     const cid = req.params.cid;
@@ -122,6 +131,16 @@ app.get('/views/carts/:cid', async (req, res) => {
         }
     } catch (error) {
         logger.error(`Error al obtener el carrito con ID ${cid}:`, error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+app.get('/users', isAdmin, async (req, res) => {
+    try {
+        const users = await usuariosModelo.find({ email: { $exists: true } }, 'first_name last_name email role').lean();
+        res.render('users', { users });
+    } catch (error) {
+        console.error('Error al obtener usuarios:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
@@ -139,7 +158,7 @@ app.get('/realtimeproducts', async (req, res) => {
 app.get('/views/products', async (req, res) => {
     try {
         let usuario = req.session.usuario
-        const products = await ProductService.getProducts({ limit: 10, page: req.query.page, sort: req.query.sort, query: req.query.query });
+        const products = await ProductService.getProducts({ limit: 12, page: req.query.page, sort: req.query.sort, query: req.query.query });
         res.render('products', { products, usuario });
     } catch (error) {
         req.logger.error('Error al obtener productos para la vista:', error);

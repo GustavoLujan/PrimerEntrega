@@ -7,11 +7,14 @@ module.exports = function (io) {
         if(!req.session.usuario){
             res.redirect('/login')
         }
+
     
         next()
     }
-    
-    router.get('/',(req,res)=>{
+
+
+    router.get('/', (req,res)=>{
+        
     
         res.setHeader('Content-Type','text/html')
         res.status(200).render('home')
@@ -40,6 +43,12 @@ module.exports = function (io) {
         res.setHeader('Content-Type','text/html')
         res.status(200).render('perfil', {usuario})
     })
+
+    router.get('/ResPass', (req, res) => {
+        res.render('ResPass');
+    });
+
+    
 
     return router;
 };

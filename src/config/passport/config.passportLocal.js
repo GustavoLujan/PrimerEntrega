@@ -12,7 +12,6 @@ const inicializarPassport = () => {
         },
         async (req, username, password, done) => {
             try {
-                console.log("estrategia local, registro Passport!")
                 let { first_name, last_name, email, age } = req.body
                 if (!first_name || !last_name || !age || !email || !password) {
                     return done(null, false)
@@ -23,7 +22,7 @@ const inicializarPassport = () => {
                 }
 
                 let regMail = /^(([^<>()\[\]\\.,;:\s@”]+(\.[^<>()\[\]\\.,;:\s@”]+)*)|(“.+”))@((\[[0–9]{1,3}\.[0–9]{1,3}\.[0–9]{1,3}\.[0–9]{1,3}])|(([a-zA-Z\-0–9]+\.)+[a-zA-Z]{2,}))$/
-                console.log(regMail.test(email))
+                req.logger.debug(regMail.test(email))
                 if (!regMail.test(email)) {
                     return done(null, false)
                 }

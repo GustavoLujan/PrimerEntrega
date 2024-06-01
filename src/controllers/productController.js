@@ -2,7 +2,8 @@ const ProductService = require('../repository/product.service');
 const { Product } = require('../dao/index');
 const { CustomError } = require('../utils/CustomErrors');
 const { ErrorCodes } = require('../utils/errors');
-const { STATUS_CODES, ERRORES_INTERNOS } = require('../utils/ErrorTypes');
+const { enviarEmail } = require('../mails/mails');
+const { STATUS_CODES, } = require('../utils/ErrorTypes');
 
 class ProductController {
     async getProducts(req, res) {
@@ -15,6 +16,10 @@ class ProductController {
             };
 
             const filter = query ? {} : {};
+
+            if (!limit) {
+                delete options.limit;
+            }
 
             const products = await Product.paginate(filter, options);
 
@@ -47,17 +52,17 @@ class ProductController {
 
     async addProduct(req, res) {
         const { title, description, code, price, stock, category, thumbnails } = req.body;
-    
+
         try {
             if (typeof title !== 'string' || title.trim() === '') {
                 throw new CustomError(
                     ErrorCodes.Campo_Vacio.name,
                     ErrorCodes.title.message,
                     STATUS_CODES.ERROR_ARGUMENTOS,
-                    
+
                 );
             }
-    
+
             if (typeof description !== 'string' || description.trim() === '') {
                 throw new CustomError(
                     ErrorCodes.Campo_Vacio.name,
@@ -65,7 +70,7 @@ class ProductController {
                     STATUS_CODES.ERROR_ARGUMENTOS,
                 );
             }
-    
+
             if (typeof code !== 'string' || code.trim() === '') {
                 throw new CustomError(
                     ErrorCodes.Campo_Vacio.name,
@@ -73,7 +78,7 @@ class ProductController {
                     STATUS_CODES.ERROR_ARGUMENTOS,
                 );
             }
-    
+
             if (typeof price !== 'number' || isNaN(price) || price <= 0) {
                 throw new CustomError(
                     ErrorCodes.Numeros.name,
@@ -81,7 +86,7 @@ class ProductController {
                     STATUS_CODES.ERROR_ARGUMENTOS,
                 );
             }
-    
+
             if (typeof stock !== 'number' || isNaN(stock) || stock < 0) {
                 throw new CustomError(
                     ErrorCodes.Numeros.name,
@@ -89,7 +94,7 @@ class ProductController {
                     STATUS_CODES.ERROR_ARGUMENTOS,
                 );
             }
-    
+
             if (typeof category !== 'string' || category.trim() === '') {
                 throw new CustomError(
                     ErrorCodes.Campo_Vacio.name,
@@ -97,24 +102,50 @@ class ProductController {
                     STATUS_CODES.ERROR_ARGUMENTOS,
                 );
             }
-    
-            await ProductService.addProduct(title, description, code, price, true, stock, category, thumbnails);
-    
+
+            const usuario = req.session.usuario;
+            let ownerEmail;
+
+            if (usuario && usuario.role === 'premium') {
+                ownerEmail = usuario.email;
+            } else {
+                ownerEmail = 'admin';
+            }
+
+            await ProductService.addProduct(title, description, code, price, true, stock, category, thumbnails, ownerEmail);
+            console.log(ownerEmail)
+
             const products = await ProductService.getProducts();
             req.io.emit('updateProducts', products);
-    
-            res.status(201).json({ message: 'Producto agregado exitosamente' });
+
+            res.status(201).json({ message: 'Producto agregado exitosamente', products: products.payload});
         } catch (error) {
             console.error('Error al agregar el producto:', error.message);
-            return res.status(error.code || 500).json({ name: error.name, code: STATUS_CODES.ERROR_ARGUMENTOS, message: error.message,  });
+            return res.status(error.code || 500).json({ name: error.name, code: STATUS_CODES.ERROR_ARGUMENTOS, message: error.message, });
         }
     }
 
     async updateProduct(req, res) {
         const productId = req.params.id;
         const updatedProduct = req.body;
+        const usuario = req.session.usuario;
 
         try {
+
+            const existingProduct = await ProductService.getProductById(productId);
+
+            if (!existingProduct) {
+                return res.status(404).json({ error: 'Producto no encontrado' });
+            }
+
+            if (usuario.role !== 'premium' && usuario.role !== 'admin') {
+                return res.status(403).json({ error: 'Permiso denegado' });
+            }
+
+            if (usuario.role === 'premium' && existingProduct.owner !== usuario.email) {
+                return res.status(403).json({ error: 'No tienes permiso para actualizar este producto, pertenece a otro usuario' });
+            }
+
             await ProductService.updateProduct(productId, updatedProduct);
 
             const products = await ProductService.getProducts();
@@ -145,6 +176,7 @@ class ProductController {
 
     async deleteProduct(req, res) {
         const productId = req.params.id;
+        const usuario = req.session.usuario;
 
         const existingProduct = await ProductService.getProductById(productId);
         if (!existingProduct) {
@@ -152,12 +184,27 @@ class ProductController {
         }
 
         try {
+            if (usuario.role !== 'admin' && (usuario.role !== 'premium' || existingProduct.owner !== usuario.email)) {
+                return res.status(403).json({ error: 'Permiso denegado, intentas eliminar el producto de otro usuario' });
+            }
+
+            const { title, owner } = existingProduct;
+
             await ProductService.deleteProduct(productId);
 
             req.io.emit('productDeleted', { productId });
 
             const products = await ProductService.getProducts();
             req.io.emit('updateProducts', products);
+
+            if (owner !== 'admin' && owner !== undefined) {
+                const userEmail = owner;
+
+                const subject = 'Producto eliminado de tu cuenta';
+                const message = `Hola,\n\nEl producto "${title}" que tenías en tu cuenta ha sido eliminado.\n\nAtentamente,\nEl equipo de nuestra tienda.`;
+
+                await enviarEmail(userEmail, subject, message);
+            }
 
             res.status(200).json({ message: 'Producto eliminado exitosamente' });
         } catch (error) {

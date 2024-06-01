@@ -29,13 +29,16 @@ class CartDao {
                 throw new Error(`No se encontró el carrito con el ID ${cartId}`);
             }
 
-            const existingProduct = cart.products.find(product => product.product === productId);
+            let productFound = false;
 
-            if (existingProduct) {
+            cart.products.forEach(product => {
+                if (String(product.product) === String(productId)) {
+                    product.quantity += quantity || 1;
+                    productFound = true;
+                }
+            });
 
-                existingProduct.quantity += quantity || 1;
-            } else {
-
+            if (!productFound) {
                 cart.products.push({ product: productId, quantity: quantity || 1 });
             }
 

@@ -4,25 +4,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/style.css">
     <title>Document</title>
 </head>
 
 <body>
-    {{{body}}}
-    <br><br>
-
     {{#unless isAuthenticated}}
-    <a href="/">Home</a>
-    <a href="/login">Login</a>
-    <a href="/registrate">Registrarse</a>
+    <div class="navbar">
+        <a href="/login">Login</a>
+        <a href="/registrate">Registrarse</a>
+        <a href="/api-docs" target="_blank">Documentación</a>
+    </div>
     {{else}}
-    <a href="/">Home</a>
-    <a href="/perfil">Perfil</a>
-    <a href="/chat">Chat</a>
-    <a href="/views/products">Productos</a>
-    <a href="/purchase">Purchase</a>
-    <a href="/api/sessions/logout">Logout</a>
+    <div class="navbar">
+        <a href="/">Home</a>
+        <a href="/perfil">Perfil</a>
+        <a href="/chat">Chat</a>
+        <a href="/api-docs" target="_blank">Documentación</a>
+        <a href="/views/products">Productos</a>
+        <a href="/purchase">Carrito</a>
+        {{#if isAdmin}}
+        <a href="/users">Usuarios</a>
+        {{/if}}
+        <a href="/api/sessions/logout">Cerrar Sesion</a>
+    </div>
     {{/unless}}
+    <br> <br>
+    {{{body}}}
+
 </body>
 
 </html>

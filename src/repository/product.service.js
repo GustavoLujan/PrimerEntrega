@@ -5,8 +5,8 @@ class ProductService {
         return productDao.getProducts({ limit, page, sort, query });
     }
 
-    async addProduct(title, description, code, price, status, stock, category, thumbnails) {
-        return productDao.addProduct(title, description, code, price, status, stock, category, thumbnails);
+    async addProduct(title, description, code, price, status, stock, category, thumbnails, ownerEmail ) {
+        return productDao.addProduct(title, description, code, price, status, stock, category, thumbnails, ownerEmail);
     }
 
     async updateProduct(id, updatedProduct) {

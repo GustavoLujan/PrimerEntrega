@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { isUser, redirectToHomeIfAdmin } = require('../middleware/authorization');
+const { redirectToHomeIfAdmin } = require('../middleware/authorization');
 const { logger } = require('../utils/winston')
 
 module.exports = function (io, MessageDao) {
-    router.get('/', redirectToHomeIfAdmin, isUser, async (req, res) => {
+    router.get('/', redirectToHomeIfAdmin, async (req, res) => {
         try {
             const messages = await MessageDao.getMessages();
             res.render('chat', { messages });

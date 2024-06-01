@@ -11,7 +11,14 @@ const usuariosEsquema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Cart',
         },
-        role: { type: String, default: 'user' },
+        role: { type: String, enum: ['user', 'admin', 'premium'], default: 'user' },
+        documents: [
+            {
+                name: String,
+                reference: String
+            }
+        ],
+        last_connection: { type: Date, default: null }
     },
 );
 

@@ -66,8 +66,18 @@ class ProductDao {
         }
     }
 
-    async addProduct(title, description, code, price, status, stock, category, thumbnails) {
+    async addProduct(title, description, code, price, status, stock, category, thumbnails, ownerEmail ) {
         try {
+            const existingProductByTitle = await Product.findOne({ title });
+            const existingProductByCode = await Product.findOne({ code });
+
+            if (existingProductByTitle) {
+                throw new Error(`Ya existe un producto con el título "${title}"`);
+            }
+
+            if (existingProductByCode) {
+                throw new Error(`Ya existe un producto con el código "${code}"`);
+            }
             const product = new Product({
                 title,
                 description,
@@ -76,7 +86,8 @@ class ProductDao {
                 status,
                 stock,
                 category,
-                thumbnails
+                thumbnails,
+                owner: ownerEmail
             });
 
             await product.save();
