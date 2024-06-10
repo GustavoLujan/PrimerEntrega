@@ -14,7 +14,7 @@ describe("Prueba routers products", async function () {
     let agent2;
 
     before(async () => {
-        await mongoose.connect('mongodb+srv://tavolujan13:Codercoder123@cluster0.hmxtrlt.mongodb.net/?retryWrites=true&w=majority&dbName=Cluster0')
+        await mongoose.connect('mongodb+srv://tavolujan13:2DzswDTS9op17gvl@cluster0.hmxtrlt.mongodb.net/?retryWrites=true&w=majority&dbName=Cluster0')
         agent = supertest.agent("http://localhost:3000");
         agent2 = supertest.agent("http://localhost:3000");
     });
