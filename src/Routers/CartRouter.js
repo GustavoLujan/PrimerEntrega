@@ -4,7 +4,7 @@ const cartController = require('../controllers/cartController');
 const { redirectToHomeIfAdmin, } = require('../middleware/authorization');
 
 
-module.exports = function (io) {
+exports = function (io) {
     router.post('/', cartController.createCart);
     router.get('/:cid', cartController.getCartById);
     router.post('/:cid/products', redirectToHomeIfAdmin,  cartController.addProductToCart);

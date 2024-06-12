@@ -5,7 +5,7 @@ const socketIO = require('socket.io');
 const path = require('path');
 const mongoose = require('mongoose');
 const ProductRouter = require('./routers/ProductRouter');
-const CartRouter = require('./routers/CartRouter');
+const CartRouter = require('./Routers/CartRouter');
 const ChatRouter = require('./routers/chatRouter');
 const SessionRouterLocal = require('./routers/SessionLocalRouter')
 const SessionGithubRouter = require('./routers/SessionGithubRouter')
@@ -66,7 +66,7 @@ app.use(sessions(
         store: mongoStore.create(
             {
                 mongoUrl: config.mongoURI,
-                mongoOptions: { dbName: "ecommerce" },
+                mongoOptions: { dbName: "Cluster0" },
                 ttl: 3600,
             }
         )
